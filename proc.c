@@ -5,7 +5,6 @@
 #include "mmu.h"
 #include "x86.h"
 #include "proc.h"
-#include "uthread.h"
 #include "spinlock.h"
 
 struct {
