@@ -7,6 +7,11 @@
 #include "proc.h"
 #include "spinlock.h"
 
+#include "kthread.h"
+
+
+
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -31,7 +36,7 @@ pinit(void)
 // If found, change state to EMBRYO and initialize
 // state required to run in the kernel.
 // Otherwise return 0.
-static struct proc*
+ struct proc*
 allocproc(void)
 {
   struct proc *p;
@@ -134,12 +139,16 @@ fork(void)
   // Allocate process.
   if((np = allocproc()) == 0)
     return -1;
-
+	np->threadId=-1;    //changed ass2* main thread of process
+   
   // Copy process state from p.
+
   if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
+    
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
+    
     return -1;
   }
   np->sz = proc->sz;
@@ -157,51 +166,19 @@ fork(void)
   pid = np->pid;
   np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
+  /* changed ass2 nulling the threads array */
+  for(i=0;i<64;i++)
+  {
+      np->sleepingThreads[i]=0;
+  }
+/* changed ass2 nulling the threads array */
   return pid;
 }
 
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait() to find out it exited.
-void
-exit(void)
-{
-  struct proc *p;
-  int fd;
 
-  if(proc == initproc)
-    panic("init exiting");
-
-  // Close all open files.
-  for(fd = 0; fd < NOFILE; fd++){
-    if(proc->ofile[fd]){
-      fileclose(proc->ofile[fd]);
-      proc->ofile[fd] = 0;
-    }
-  }
-
-  iput(proc->cwd);
-  proc->cwd = 0;
-
-  acquire(&ptable.lock);
-
-  // Parent might be sleeping in wait().
-  wakeup1(proc->parent);
-
-  // Pass abandoned children to init.
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->parent == proc){
-      p->parent = initproc;
-      if(p->state == ZOMBIE)
-        wakeup1(initproc);
-    }
-  }
-
-  // Jump into the scheduler, never to return.
-  proc->state = ZOMBIE;
-  sched();
-  panic("zombie exit");
-}
 
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
@@ -379,6 +356,7 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   proc->chan = chan;
   proc->state = SLEEPING;
+   
   sched();
 
   // Tidy up.
@@ -473,4 +451,274 @@ procdump(void)
   }
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* kernel threads section second attempt */
+
+
+
+/* kerenl threads section */
+ //first attempt fail due to error: " panic kfree"
+static int nextThread=0;
+int strcmp(const char *p, const char *q)
+{
+while(*p && *p == *q)
+    p++, q++;
+ return (uchar)*p - (uchar)*q;
+}
+
+int kthread_create( void*(*start_func)(), void* stack, unsigned int stack_size )
+{
+int i, pid;
+  struct proc *np;
+
+  // Allocate process.
+  if((np = allocproc()) == 0)
+    return -1;
+for(i=0;i<64;i++)
+  {
+      np->sleepingThreads[i]=0;
+  }
+ if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
+   
+    kfree(np->kstack);
+    np->kstack = 0;
+    np->state = UNUSED;
+    
+    
+    return -1;
+  }
+
+nextThread++;
+np->threadId=nextThread;
+np->pid=proc->pid;
+ np->pgdir=proc->pgdir;
+  np->sz = proc->sz;
+  np->parent = proc->parent;
+  
+  *np->tf = *proc->tf;
+  np->tf->eip=(uint)start_func;
+  np->tf->esp=(uint)stack+stack_size;
+
+  // Clear %eax so that fork returns 0 in the child.
+  np->tf->eax = 0;
+
+  for(i = 0; i < NOFILE; i++)
+    if(proc->ofile[i])
+      np->ofile[i] = proc->ofile[i];
+  np->cwd = proc->cwd;
+ 
+  pid = np->pid;
+  np->state = RUNNABLE;
+  safestrcpy(np->name, "thread", sizeof(proc->name));
+  return pid;
+
+
+
+}
+int kthread_id()
+{
+   return proc->threadId;
+
+}
+
+//the same code as the original exit
+void
+New_exit(void)
+{
+  struct proc *p;
+  int fd;
+   
+  if(proc == initproc)
+    panic("init exiting");
+
+  // Close all open files.
+  for(fd = 0; fd < NOFILE; fd++){
+    if(proc->ofile[fd]){
+      fileclose(proc->ofile[fd]);
+      proc->ofile[fd] = 0;
+    }
+  }
+
+  iput(proc->cwd);
+  proc->cwd = 0;
+ 
+  acquire(&ptable.lock);
+  
+
+
+  // Parent might be sleeping in wait().
+  wakeup1(proc->parent);
+  
+  // Pass abandoned children to init.
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->parent == proc){
+      p->parent = initproc;
+      if(p->state == ZOMBIE)
+        wakeup1(initproc);
+    }
+  }
+ 
+  // Jump into the scheduler, never to return.
+  proc->state = ZOMBIE;
+  sched();
+  
+  panic("zombie exit");
+
+}
+void kthread_exit()
+{
+ 
+struct proc *p;
+   
+int threadsCounter=0;
+
+acquire(&ptable.lock);
+  if(proc == initproc)
+    panic("init exiting");
+int i=0;
+
+for(;i<64;i++)
+{
+	if(proc->sleepingThreads[i]!=0)
+                
+		wakeup1(proc->sleepingThreads[i]);
+
+}
+
+ 
+for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+{
+	if(p->pid==proc->pid  && p->state!=ZOMBIE && p->state!=UNUSED)
+	{
+		threadsCounter++;	
+	}
+	
+
+}
+
+
+if(threadsCounter==1)
+{
+
+
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    if(p->state == ZOMBIE  && p->pid ==proc->pid && proc->threadId != p->threadId){
+        
+        
+        kfree(p->kstack);
+        p->kstack = 0;
+        
+        p->state = UNUSED;
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        
+        
+      }
+   release(&ptable.lock);
+   New_exit();
+   return ; 
+
+}
+
+ 
+
+
+  iput(proc->cwd);
+  proc->cwd = 0;
+
+  
+  
+  // Jump into the scheduler, never to return.
+  proc->state = ZOMBIE;
+  sched();
+  panic("zombie exit"); 
+  
+
+
+
+}
+void manage_exits()
+{
+   kthread_exit();
+
+}
+
+int kthread_join( int thread_id )
+{
+   struct proc *p;
+  
+  int ans=0;
+  
+  acquire(&ptable.lock);
+  
+  int i=0;
+    // Scan through table looking for zombie children and correct thread
+    
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->threadId == thread_id  && p->state!=ZOMBIE)
+	{
+            ans=1;
+	    break;
+        }
+        
+      
+   
+    }
+	
+    
+	
+    if(ans==0)
+    {
+   release(&ptable.lock);
+    return -1;
+
+    }
+
+    if(ans==1)
+    {
+	for(;i<64;i++)
+	{
+		if(p->sleepingThreads[i]==0)        
+		{			
+						
+			p->sleepingThreads[i]=proc;
+			break;		
+			}
+	}
+         
+        sleep(proc, &ptable.lock); 
+	
+	p->sleepingThreads[i]=0;
+	release(&ptable.lock);
+        return 0;
+    }
+
+   return -1;
+
+}
+
+void
+exit(void)
+{
+   
+  manage_exits();
+
+}
 

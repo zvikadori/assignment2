@@ -41,7 +41,7 @@ void sanityMethod(){
 		uthread_yield();
 	}
 	printf(3, "killing %d, with %d and %d iters", t.tid, t.priority, numOfIterations);
-	//uthread_exit();
+	uthread_exit();
 }
 
 int

@@ -1,4 +1,4 @@
-#dfeine MAX_STACK_SIZE 4000
+#define MAX_STACK_SIZE 4000
 #define MAX_MUTEXES 64
 #define MAX_CONDS 64
 
@@ -6,7 +6,7 @@
 	The API of the KLT package
  ********************************/
 
-int kthread_create( void*(*start_func)(), void* stack, unit stack_size ); 
+//int kthread_create( void*(*start_func)(), void* stack, unit stack_size ); 
 int kthread_id();
 void kthread_exit();
 int kthread_join( int thread_id );

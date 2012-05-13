@@ -1,5 +1,8 @@
 // Segments in proc->gdt.
 #define NSEGS     7
+#define MAX_THREADS 256
+#define mainThread -1
+
 
 // Per-CPU state
 struct cpu {
@@ -68,6 +71,8 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  int threadId;
+  struct proc* sleepingThreads[64];
 };
 
 // Process memory is laid out contiguously, low addresses first:

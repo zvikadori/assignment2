@@ -6,8 +6,12 @@
 #include "mmu.h"
 #include "proc.h"
 
-int
-sys_fork(void)
+extern int kthread_create( void*(*start_func)(), void* stack, unsigned int stack_size );
+extern int kthread_id();
+extern void kthread_exit();
+extern int kthread_join( int thread_id );
+
+int sys_fork(void)
 {
   return fork();
 }
@@ -88,3 +92,68 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+
+
+/*    kernel threads section */
+
+int sys_kthread_create(void)
+{
+int start_func;
+int stack;
+int stack_size;
+void*(*t)() ;
+argint(0, &start_func);
+argint(1, &stack);
+argint(2, &stack_size);
+t=  (void* (*)(void*))(start_func);
+return kthread_create(t, (void*) stack, (unsigned int) stack_size );
+}
+int sys_kthread_id(void)
+{
+     return kthread_id();
+
+}
+
+int sys_kthread_exit(void)
+{
+	 kthread_exit();
+	return 1;
+
+}
+
+
+
+int sys_kthread_join(void)
+{
+     int tid;
+     argint(0, &tid);
+     return kthread_join(tid);
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*    kernel threads section */
+
+
+
+
+
+
+

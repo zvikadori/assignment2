@@ -98,6 +98,10 @@ extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
+extern int sys_kthread_create(void);
+extern int sys_kthread_id(void);
+extern int sys_kthread_exit(void);
+extern int sys_kthread_join(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -121,6 +125,11 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_kthread_create]   sys_kthread_create,
+[SYS_kthread_id]   sys_kthread_id,
+[SYS_kthread_exit]   sys_kthread_exit,
+[SYS_kthread_join]   sys_kthread_join,
+
 };
 
 void

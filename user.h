@@ -1,6 +1,10 @@
 struct stat;
 
 // system calls
+int kthread_create( void*(*start_func)(), void* stack, unsigned int stack_size );
+int kthread_id();
+void kthread_exit();
+int kthread_join( int thread_id );
 int fork(void);
 int exit(void) __attribute__((noreturn));
 int wait(void);

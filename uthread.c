@@ -4,7 +4,7 @@
 
 #define SCHED_RR 0
 #define SCHED_PB 1
-static int SCHED_POLICY = SCHED_RR; 
+static int SCHED_POLICY = SCHED_PB; 
 static int PB_RR_INDEXES[PRIORITIES] = {-1};
 static int RR_INDEX = -1;
 static uthread_t *thread = 0;
