@@ -2,6 +2,21 @@
 #define MAX_MUTEXES 64
 #define MAX_CONDS 64
 
+#define M_UNUSED 0
+#define M_UNLOCKED 1
+#define M_LOCKED 2
+
+typedef struct{
+	int tid;
+	int sleepingTID[MAX_THREADS];
+	int status; //0 UNUSED, 1 = USED, but not locked, 2= USED AND LOCKED(by tid)
+	//for queue:
+	int count;
+	int startIndex;
+}kthread_mutex_t; 
+
+
+
 /********************************
 	The API of the KLT package
  ********************************/

@@ -5,6 +5,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "kthread.h"
 
 extern int kthread_create( void*(*start_func)(), void* stack, unsigned int stack_size );
 extern int kthread_id();
@@ -132,24 +133,36 @@ int sys_kthread_join(void)
 
 
 }
+/*    end kernel threads section */
+
+/*    mutex section */
+
+int sys_kthread_mutex_alloc(void){
+	return kthread_mutex_alloc();
+}
+int sys_kthread_mutex_dealloc(void){
+	int mutex_id;
+	argint(0, &mutex_id); 
+	return kthread_mutex_dealloc(mutex_id);
+}
+int sys_kthread_mutex_lock(void){
+	int mutex_id;
+	argint(0, &mutex_id); 
+	return kthread_mutex_lock(mutex_id);	
+}
+int sys_kthread_mutex_unlock(void){
+	int mutex_id;
+	argint(0, &mutex_id); 
+	return kthread_mutex_unlock(mutex_id);	
+}
+
+/* end mutex section */
 
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-/*    kernel threads section */
 
 
 

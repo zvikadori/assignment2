@@ -1,10 +1,7 @@
 struct stat;
 
 // system calls
-int kthread_create( void*(*start_func)(), void* stack, unsigned int stack_size );
-int kthread_id();
-void kthread_exit();
-int kthread_join( int thread_id );
+
 int fork(void);
 int exit(void) __attribute__((noreturn));
 int wait(void);
@@ -26,6 +23,14 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int kthread_create( void*(*start_func)(), void* stack, unsigned int stack_size );
+int kthread_id();
+void kthread_exit();
+int kthread_join( int thread_id );
+int kthread_mutex_alloc();
+int kthread_mutex_dealloc( int mutex_id );
+int kthread_mutex_lock( int mutex_id );
+int kthread_mutex_unlock( int mutex_id );
 
 // ulib.c
 int stat(char*, struct stat*);

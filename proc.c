@@ -6,7 +6,6 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
-
 #include "kthread.h"
 
 
@@ -16,6 +15,12 @@ struct {
   struct spinlock lock;
   struct proc proc[NPROC];
 } ptable;
+
+
+struct {
+  struct spinlock lock;
+  kthread_mutex_t kthread_locks[MAX_MUTEXES];
+} mtable;
 
 static struct proc *initproc;
 
@@ -583,73 +588,66 @@ New_exit(void)
 void kthread_exit()
 {
  
-struct proc *p;
-   
-int threadsCounter=0;
+	struct proc *p;
+	   
+	int threadsCounter=0;
 
-acquire(&ptable.lock);
-  if(proc == initproc)
-    panic("init exiting");
-int i=0;
+	acquire(&ptable.lock);
+	  if(proc == initproc)
+		panic("init exiting");
+	int i=0;
 
-for(;i<64;i++)
-{
-	if(proc->sleepingThreads[i]!=0)
-                
-		wakeup1(proc->sleepingThreads[i]);
-
-}
-
- 
-for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-{
-	if(p->pid==proc->pid  && p->state!=ZOMBIE && p->state!=UNUSED)
+	for(;i<64;i++)
 	{
-		threadsCounter++;	
+		if(proc->sleepingThreads[i]!=0)
+					
+			wakeup1(proc->sleepingThreads[i]);
+
 	}
-	
 
-}
+	 
+	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+	{
+		if(p->pid==proc->pid  && p->state!=ZOMBIE && p->state!=UNUSED)
+		{
+			threadsCounter++;	
+		}
+		
 
-
-if(threadsCounter==1)
-{
-
-
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == ZOMBIE  && p->pid ==proc->pid && proc->threadId != p->threadId){
-        
-        
-        kfree(p->kstack);
-        p->kstack = 0;
-        
-        p->state = UNUSED;
-        p->pid = 0;
-        p->parent = 0;
-        p->name[0] = 0;
-        p->killed = 0;
-        
-        
-      }
-   release(&ptable.lock);
-   New_exit();
-   return ; 
-
-}
-
- 
+	}
 
 
-  iput(proc->cwd);
-  proc->cwd = 0;
+	if(threadsCounter==1)
+	{
 
-  
-  
-  // Jump into the scheduler, never to return.
-  proc->state = ZOMBIE;
-  sched();
-  panic("zombie exit"); 
-  
+
+		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+		if(p->state == ZOMBIE  && p->pid ==proc->pid && proc->threadId != p->threadId){
+			
+			
+			kfree(p->kstack);
+			p->kstack = 0;
+			
+			p->state = UNUSED;
+			p->pid = 0;
+			p->parent = 0;
+			p->name[0] = 0;
+			p->killed = 0;
+			
+			
+		  }
+	   release(&ptable.lock);
+	   New_exit();
+	   return ; 
+
+	}
+
+
+	  // Jump into the scheduler, never to return.
+	  proc->state = ZOMBIE;
+	  sched();
+	  panic("zombie exit"); 
+	  
 
 
 
@@ -721,4 +719,146 @@ exit(void)
   manage_exits();
 
 }
+
+
+
+
+
+
+void
+minit(void)
+{
+  initlock(&mtable.lock, "mtable");
+}
+
+
+int 
+kthread_mutex_alloc(){
+	int i,j;
+	kthread_mutex_t *mutex;
+	acquire(&mtable.lock);
+	//find unused mutex and allocate it:
+	for (i = 0 ; i < MAX_MUTEXES ; i++){
+		mutex = &mtable.kthread_locks[i];
+		if (mutex->status == M_UNUSED){
+			mutex->tid = 0;
+			mutex->status = M_UNLOCKED;
+			for (j = 0; j<MAX_THREADS; j++)
+				mutex->sleepingTID[j] = 0;
+			mutex->count = 0;
+			mutex->startIndex = 0;
+			release(&mtable.lock);
+			return i;
+		}
+	}
+	release(&mtable.lock);
+	return -1;
+}
+
+int 
+kthread_mutex_dealloc( int mutex_id ){
+	kthread_mutex_t *mutex;
+	acquire(&mtable.lock);
+	mutex = &mtable.kthread_locks[mutex_id];
+	if (mutex->status == M_UNLOCKED){
+		mutex->status = M_UNUSED;
+		release(&mtable.lock);
+		return 0;
+	}
+	return -1;
+}
+
+int
+kthread_mutex_lock( int mutex_id ){
+	kthread_mutex_t *mutex;
+	int destinationIndex;
+	int isInSleepingTID = 0;
+	while(1){
+		acquire(&mtable.lock);
+		mutex = &mtable.kthread_locks[mutex_id];
+		if (mutex->status == M_UNUSED){
+			release(&mtable.lock);
+			return -1;
+		} else if (mutex->status == M_UNLOCKED){
+					mutex->status = M_LOCKED;
+					mutex->tid = proc->threadId;
+					release(&mtable.lock);
+					return 0;
+		} else if (mutex->status == M_LOCKED){
+					//add tid to the queue
+					if (isInSleepingTID == 0){
+						destinationIndex =  (mutex->startIndex + mutex->count) % MAX_THREADS;
+						mutex->sleepingTID[destinationIndex] = proc->threadId;
+						mutex->count = mutex->count+1;
+						isInSleepingTID = 1;
+					}
+					release(&mtable.lock);
+					//block
+					acquire(&ptable.lock);
+					proc->state = BLOCKING;
+					sched();
+					release(&ptable.lock);
+					
+					acquire(&mtable.lock);
+					/*if (proc->threadId == mutex->tid){
+						release(&mtable.lock);
+						return 0;
+					} else {
+						release(&mtable.lock);
+					}*/
+					release(&mtable.lock);
+					
+		}
+	}		
+	return -1;
+}
+
+
+int
+kthread_mutex_unlock( int mutex_id ){
+	kthread_mutex_t *mutex;
+	int i;
+	int tidToWakeUp;
+	struct proc *p;
+	acquire(&mtable.lock);
+
+	mutex = &mtable.kthread_locks[mutex_id];
+	for( i = 0; i< MAX_MUTEXES; i++){
+		cprintf("%d, ", mutex->sleepingTID[i]);
+	}
+	if (proc->threadId == mutex->tid && mutex->status == M_LOCKED){
+		mutex->status=M_UNLOCKED;
+		mutex->tid=0;
+		//queue
+		tidToWakeUp = mutex->sleepingTID[mutex->startIndex];
+		if (tidToWakeUp !=0){
+			mutex->count = mutex->count-1;
+			mutex->startIndex = (mutex->startIndex + 1) % MAX_THREADS;
+		}
+	
+		cprintf("\n%d, should wake up\n  start index: %d ", tidToWakeUp, mutex->startIndex);
+		//end messing with queue
+		//
+		acquire(&ptable.lock); // now touching ptable!!
+		//mutex->tid = tidToWakeUp;
+		for(p=ptable.proc; p<&ptable.proc[NPROC]; p++){
+			//cprintf("do yo come here");
+			if (p->state == BLOCKING && p->threadId == tidToWakeUp){
+				p->state = RUNNABLE;
+				break;
+			}
+		}
+		release(&ptable.lock);
+		//wakeup(mutex);
+		release(&mtable.lock);
+		
+		return 0;	
+	} else {
+	
+		release(&mtable.lock);
+		return -1;
+	}
+	
+}
+
 
