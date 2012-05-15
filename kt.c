@@ -1,11 +1,10 @@
 #include "types.h"
 #include "stat.h"
 #include "user.h"
-static int lock1;
-static int lock2;
+static int lock;
 
 int common=5;
-/*void* thread()
+void* thread()
 {
 	int k;
 	kthread_mutex_lock(lock);
@@ -15,8 +14,8 @@ int common=5;
 	kthread_mutex_unlock(lock);
 	kthread_exit();
 	return (void *)1;
-}*/
-
+}
+/*
 void* thread1(){
 	kthread_mutex_lock(lock1);
 	sleep(200);
@@ -40,17 +39,16 @@ void* thread2(){
 	kthread_exit();
 	return (void *)2;
 }
-
+*/
 int main(void)
 {
-	//int i = 0;
-	lock1 = kthread_mutex_alloc();
-	lock2 = kthread_mutex_alloc();
-	void* stack =malloc(4000);
-	kthread_create(thread1,stack,4000);
-	stack =malloc(4000);
-	kthread_create(thread1,stack,4000);
-	
+	int i;
+	kthread_mutex_alloc();
+	void* stack;// =malloc(4000);
+	for(i = 0; i < 25; i++) {
+		stack =malloc(4000);
+		kthread_create(thread,stack,4000);
+	}
 	
 	//(20);
 //	sleep(2000);

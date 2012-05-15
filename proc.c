@@ -30,6 +30,25 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
+
+
+/*
+ * return 1 if threadID is in queue, 0 otherwise
+ * assumes that mtable lock is acquired!
+ */
+int
+isInQueue(int mutex_id, int threadID){
+	kthread_mutex_t *mutex = &mtable.kthread_locks[mutex_id]; 
+	int checkUntil = (mutex->startIndex + mutex->count + 1) % MAX_MUTEXES;
+	int i = mutex->startIndex;
+	while (i != checkUntil){
+		if (mutex->sleepingTID[i] == threadID)
+			return 1;
+		i = (i + 1) % MAX_MUTEXES;
+	}
+	return 0;
+}
+
 void
 pinit(void)
 {
@@ -772,7 +791,7 @@ int
 kthread_mutex_lock( int mutex_id ){
 	kthread_mutex_t *mutex;
 	int destinationIndex;
-	int isInSleepingTID = 0;
+	//int isInSleepingTID = 0;
 	while(1){
 		acquire(&mtable.lock);
 		mutex = &mtable.kthread_locks[mutex_id];
@@ -786,11 +805,11 @@ kthread_mutex_lock( int mutex_id ){
 					return 0;
 		} else if (mutex->status == M_LOCKED){
 					//add tid to the queue
-					if (isInSleepingTID == 0){
+					if (isInQueue(mutex_id, proc->threadId) == 0){
 						destinationIndex =  (mutex->startIndex + mutex->count) % MAX_THREADS;
 						mutex->sleepingTID[destinationIndex] = proc->threadId;
 						mutex->count = mutex->count+1;
-						isInSleepingTID = 1;
+						//isInSleepingTID = 1;
 					}
 					release(&mtable.lock);
 					//block
@@ -823,7 +842,7 @@ kthread_mutex_unlock( int mutex_id ){
 	acquire(&mtable.lock);
 
 	mutex = &mtable.kthread_locks[mutex_id];
-	for( i = 0; i< MAX_MUTEXES; i++){
+	for( i = 0; i< MAX_THREADS; i++){
 		cprintf("%d, ", mutex->sleepingTID[i]);
 	}
 	if (proc->threadId == mutex->tid && mutex->status == M_LOCKED){
