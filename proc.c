@@ -945,11 +945,12 @@ kthread_cond_wait( int cond_id, int mutex_id ){
 		cond->count = cond->count+1;
 		cond->waitingMutexID = mutex_id;
 		kthread_mutex_unlock(mutex_id);
+		release(&ctable.lock);
 		acquire(&ptable.lock);
 		proc->state = BLOCKING;
 		sched();
 		release(&ptable.lock);
-		release(&ctable.lock);
+		
 		return 0;
 	}
 	

@@ -59,9 +59,10 @@ int main(void)
 */
 
 void * thread1 (void){
+	printf(1, "I went to sleep %d\n", kthread_id());
 	kthread_mutex_lock(lock);
 	kthread_cond_wait(cond, lock);
-	printf(0, "im came alive!!\n");
+	printf(1, "im came alive!! %d\n", kthread_id());
 	kthread_mutex_unlock(lock);
 	kthread_exit();
 	return (void *) 0;
@@ -69,7 +70,7 @@ void * thread1 (void){
 
 void * thread2 (void){
 	kthread_mutex_lock(lock);
-	printf(0,"I will wake him up!!");
+	printf(1,"I will wake him up!! %d", kthread_id());
 	kthread_cond_signal(cond);
 	kthread_exit();
 	return (void *) 0;
@@ -79,12 +80,18 @@ void * thread2 (void){
 int main(void){
 	lock = kthread_mutex_alloc();
 	cond = kthread_cond_alloc();
+	int i;
+	void* stack;// =malloc(4000);
+	for(i = 0; i< 20; i++){
+		stack =malloc(4000);
+		kthread_create(thread1,stack,4000);
+	}
 	
-	void* stack =malloc(4000);
-	kthread_create(thread1,stack,4000);
+	for(i = 0; i< 20; i++){
+		stack =malloc(4000);
+		kthread_create(thread2,stack,4000);
+	}
 	
-	stack =malloc(4000);
-	kthread_create(thread2,stack,4000);
 	
 	exit();
 	//return (void *) 0;
