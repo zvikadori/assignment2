@@ -22,6 +22,12 @@ struct {
   kthread_mutex_t kthread_locks[MAX_MUTEXES];
 } mtable;
 
+
+struct{
+	struct spinlock lock;
+	kthread_cond_t conds[MAX_CONDS]; 
+} ctable;
+
 static struct proc *initproc;
 
 int nextpid = 1;
@@ -784,6 +790,7 @@ kthread_mutex_dealloc( int mutex_id ){
 		release(&mtable.lock);
 		return 0;
 	}
+	release(&mtable.lock);
 	return -1;
 }
 
@@ -880,4 +887,107 @@ kthread_mutex_unlock( int mutex_id ){
 	
 }
 
+
+void
+cinit(void)
+{
+  initlock(&ctable.lock, "ctable");
+}
+
+int
+kthread_cond_alloc(){
+	int i,j;
+	kthread_cond_t *cond;
+	acquire(&ctable.lock);
+	//find unused conds and allocate it:
+	for (i = 0 ; i < MAX_CONDS ; i++){
+		cond = &ctable.conds[i];
+		if (cond->status == C_UNUSED){
+			cond->status = C_USED;
+			cond->count = 0;
+			cond->startIndex = 0;
+			cond->waitingMutexID = 0;
+			for (j = 0; j<MAX_THREADS; j++)
+				cond->sleepingTID[j] = 0;
+			release(&ctable.lock);
+			return i;
+		}
+	}
+	release(&ctable.lock);
+	return -1;
+}
+
+int
+kthread_cond_dealloc( int cond_id ){
+	kthread_cond_t *cond;
+	acquire(&ctable.lock);
+	cond = &ctable.conds[cond_id];
+	if (cond->status == C_USED){
+		cond->status = C_UNUSED;
+		release(&ctable.lock);
+		return 0;
+	}
+	release(&ctable.lock);
+	return -1;
+}
+
+
+int
+kthread_cond_wait( int cond_id, int mutex_id ){
+	kthread_cond_t *cond;
+	//kthread_mutex_t *mutex;
+	int destinationIndex;
+	acquire(&ctable.lock);
+	cond = &ctable.conds[cond_id];
+	if (cond->status == C_USED){
+		destinationIndex =  (cond->startIndex + cond->count) % MAX_THREADS;
+		cond->sleepingTID[destinationIndex] = proc->threadId;
+		cond->count = cond->count+1;
+		cond->waitingMutexID = mutex_id;
+		kthread_mutex_unlock(mutex_id);
+		acquire(&ptable.lock);
+		proc->state = BLOCKING;
+		sched();
+		release(&ptable.lock);
+		release(&ctable.lock);
+		return 0;
+	}
+	
+	release(&ctable.lock);
+	return -1;
+}
+
+
+int
+kthread_cond_signal( int cond_id ){
+	kthread_cond_t *cond;
+	kthread_mutex_t *mutex;
+	struct proc *p;
+	int tidToWakeUp;
+	acquire(&ctable.lock);
+	cond = &ctable.conds[cond_id];
+	if (cond->count !=0){
+		//dequeue thread from cond waiting threads
+		tidToWakeUp = cond->sleepingTID[cond->startIndex];
+		cond->count = cond->count-1;
+		cond->startIndex = (cond->startIndex + 1) % MAX_THREADS;
+		
+		//give him the lock
+		acquire(&mtable.lock);
+		mutex = &mtable.kthread_locks[cond->waitingMutexID];
+		mutex->tid = tidToWakeUp;
+		release(&mtable.lock);
+		//wake him up
+		acquire(&ptable.lock);
+		for(p=ptable.proc; p<&ptable.proc[NPROC]; p++){
+			if (p->state == BLOCKING && p->threadId == tidToWakeUp){
+				p->state = RUNNABLE;
+				break;
+			}
+		}
+		release(&ptable.lock);
+	}
+	release(&ctable.lock);
+	return 0;
+}
 

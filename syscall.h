@@ -31,8 +31,10 @@
 #define SYS_kthread_mutex_lock 28
 #define SYS_kthread_mutex_unlock 29
 
-
-
+#define SYS_kthread_cond_alloc 30
+#define SYS_kthread_cond_dealloc 31
+#define SYS_kthread_cond_wait 32
+#define SYS_kthread_cond_signal 33
 
 
 

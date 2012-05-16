@@ -29,6 +29,7 @@ main(void)
   uartinit();      // serial port
   pinit();         // process table
   minit();			// mutex table
+  cinit();			// cond_vars table
   tvinit();        // trap vectors
   binit();         // buffer cache
   fileinit();      // file table

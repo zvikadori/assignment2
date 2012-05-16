@@ -159,7 +159,39 @@ int sys_kthread_mutex_unlock(void){
 /* end mutex section */
 
 
+int kthread_cond_alloc();
+int kthread_cond_dealloc( int cond_id );
+int kthread_cond_wait( int cond_id, int mutex_id );
+int kthread_cond_signal( int cond_id );
 
+/* cond vars section */
+int sys_kthread_cond_alloc(void){
+	return kthread_cond_alloc();
+}
+
+int sys_kthread_cond_dealloc(void){
+	int cond_id;
+	argint(0, &cond_id);
+	return kthread_cond_dealloc(cond_id);
+}
+
+int sys_kthread_cond_wait(void){
+	int cond_id;
+	int mutex_id;
+	argint(0, &cond_id);
+	argint(1, &mutex_id);
+	return kthread_cond_wait(cond_id, mutex_id);
+}
+
+int sys_kthread_cond_signal(void){
+	int cond_id;
+	argint(0, &cond_id);
+	return kthread_cond_signal(cond_id);
+}
+
+
+
+/* end cond vars section */
 
 
 

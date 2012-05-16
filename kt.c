@@ -2,7 +2,8 @@
 #include "stat.h"
 #include "user.h"
 static int lock;
-
+static int cond;
+/*
 int common=5;
 void* thread()
 {
@@ -15,7 +16,7 @@ void* thread()
 	kthread_exit();
 	return (void *)1;
 }
-/*
+
 void* thread1(){
 	kthread_mutex_lock(lock1);
 	sleep(200);
@@ -39,7 +40,7 @@ void* thread2(){
 	kthread_exit();
 	return (void *)2;
 }
-*/
+
 int main(void)
 {
 	int i;
@@ -54,4 +55,37 @@ int main(void)
 //	sleep(2000);
 //	kthread_mutex_dealloc(lock);
 	exit();
+}
+*/
+
+void * thread1 (void){
+	kthread_mutex_lock(lock);
+	kthread_cond_wait(cond, lock);
+	printf(0, "im came alive!!\n");
+	kthread_mutex_unlock(lock);
+	kthread_exit();
+	return (void *) 0;
+}
+
+void * thread2 (void){
+	kthread_mutex_lock(lock);
+	printf(0,"I will wake him up!!");
+	kthread_cond_signal(cond);
+	kthread_exit();
+	return (void *) 0;
+}
+
+
+int main(void){
+	lock = kthread_mutex_alloc();
+	cond = kthread_cond_alloc();
+	
+	void* stack =malloc(4000);
+	kthread_create(thread1,stack,4000);
+	
+	stack =malloc(4000);
+	kthread_create(thread2,stack,4000);
+	
+	exit();
+	//return (void *) 0;
 }

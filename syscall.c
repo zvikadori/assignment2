@@ -106,6 +106,10 @@ extern int sys_kthread_mutex_alloc(void);
 extern int sys_kthread_mutex_dealloc(void);
 extern int sys_kthread_mutex_lock(void);
 extern int sys_kthread_mutex_unlock(void);
+extern int sys_kthread_cond_alloc(void);
+extern int sys_kthread_cond_dealloc(void);
+extern int sys_kthread_cond_wait(void);
+extern int sys_kthread_cond_signal(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -137,8 +141,10 @@ static int (*syscalls[])(void) = {
 [SYS_kthread_mutex_dealloc] sys_kthread_mutex_dealloc,
 [SYS_kthread_mutex_lock] sys_kthread_mutex_lock,
 [SYS_kthread_mutex_unlock] sys_kthread_mutex_unlock,
-
-
+[SYS_kthread_cond_alloc] sys_kthread_cond_alloc,
+[SYS_kthread_cond_dealloc] sys_kthread_cond_dealloc,
+[SYS_kthread_cond_wait] sys_kthread_cond_wait,
+[SYS_kthread_cond_signal] sys_kthread_cond_signal,
 };
 
 void

@@ -179,7 +179,7 @@ void            clearpteu(pde_t *pgdir, char *uva);
 
 //kthread.c
 void minit(void);
-
+void cinit(void);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

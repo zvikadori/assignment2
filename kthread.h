@@ -6,6 +6,9 @@
 #define M_UNLOCKED 1
 #define M_LOCKED 2
 
+#define C_UNUSED 0
+#define C_USED 1
+
 typedef struct{
 	int tid;
 	int sleepingTID[MAX_THREADS];
@@ -15,7 +18,14 @@ typedef struct{
 	int startIndex;
 }kthread_mutex_t; 
 
-
+typedef struct{
+	int status;
+	//for queue:
+	int sleepingTID[MAX_THREADS];
+	int count;
+	int startIndex;
+	int waitingMutexID;
+}kthread_cond_t;
 
 /********************************
 	The API of the KLT package
